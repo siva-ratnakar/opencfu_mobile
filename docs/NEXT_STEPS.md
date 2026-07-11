@@ -8,11 +8,15 @@ priority order.
 - **Android**: functional, this is the most-tested platform. See
   `docs/BUILD.md` for the `OpenCV_DIR` build flag the native counting engine
   needs.
-- **Web**: newly pilot-ready (this session) — capture/import, manual
-  counting, and PDF/CSV/PNG export all work in-browser. The native
-  auto-counting engine does **not** run on web (no WASM build of it exists);
-  see "Web: automatic counting" below if that's worth revisiting. Build/host
-  instructions are in `docs/BUILD.md`.
+- **Web**: pilot-ready — capture/import, manual counting, PDF/CSV/PNG
+  export, and (as of this session) automatic counting all work in-browser,
+  via a WebAssembly build of the same native engine Android/iOS use (see
+  `native/opencfu_core/wasm/README.md`). The WASM analysis pipeline itself
+  was thoroughly tested (real plate photos under Node), but the
+  browser-loading and `dart:js_interop` glue around it were never run in an
+  actual browser before shipping — **verify a real capture/count on the
+  deployed site first**; see "Web: verify the WASM engine in a real
+  browser" below. Build/host instructions are in `docs/BUILD.md`.
 - **iOS**: wired up (Podfile, `opencfu_mobile_core.podspec`, the FFI bridge
   compiles the same C++ sources as Android) but **never actually built or run**
   — this repo was assembled without a Mac. Treat it as the top priority once
@@ -39,15 +43,30 @@ likely to break first:
    basic-capture like the Android widget does).
 4. Only after that: TestFlight for the pilot group mentioned for the web app.
 
-## 2. Web: automatic counting (optional, large)
+## 2. Web: verify the WASM engine in a real browser
 
-Manual counting already works on web as a stopgap. If the pilot feedback
-says "I need the real algorithm in the browser," porting
-`native/opencfu_core` (OpenCV + the vendored processor) to WebAssembly via
-Emscripten is the way there — but it's a substantial, separate undertaking
-(a WASM OpenCV build, rewriting the FFI bridge as JS interop, re-verifying
-every processing option produces the same results as native). Don't start
-this speculatively; wait until pilot feedback actually asks for it.
+The WASM port (`native/opencfu_core/wasm/`) is done and the analysis logic
+was validated end-to-end against real plate photos — but not through an
+actual browser, since none was available while building it. Before relying
+on it for a pilot:
+
+1. Open the deployed site, capture or import a real plate photo, confirm a
+   plausible colony count comes back (not "unavailable", not a crash).
+2. If it fails, open the browser dev console first — `native/opencfu_core/wasm/README.md`'s
+   last section ("What still needs a real browser") lists the two specific
+   things most likely to be wrong: the dynamic `<script>` loading in
+   `web/opencfu/opencfu_web_bridge.js`, or the `dart:js_interop` calling
+   convention in `lib/services/opencfu_engine_web.dart`.
+3. Spot-check that a web count and an Android count on the *same* photo
+   roughly agree — they run the identical processor code, so they should
+   match exactly modulo any EXIF-orientation handling differences between
+   how each platform decodes the image before handing it to the engine.
+
+Once confirmed working, this item is done; only revisit
+`native/opencfu_core/wasm/` if the processor/bridge C++ itself changes later
+(see that README for the rebuild steps -- it needs a large one-time
+Emscripten + custom-OpenCV toolchain setup, not part of normal
+`flutter build web`/CI).
 
 ## 3. Premium features
 

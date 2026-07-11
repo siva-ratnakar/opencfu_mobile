@@ -34,6 +34,11 @@ migrate_working_dir/
 /coverage/
 /dist/
 
+# CMake build output for the WASM engine (native/opencfu_core/wasm/README.md)
+# -- the compiled artifacts it produces are committed under web/opencfu/
+# instead; this directory is just intermediate object files/CMake cache.
+/native/opencfu_core/wasm/build/
+
 # Symbolication related
 app.*.symbols
 

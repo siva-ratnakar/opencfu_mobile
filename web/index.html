@@ -34,6 +34,15 @@
 </head>
 <body>
   <!--
+    Defines window.opencfuAnalyze(), used by
+    lib/services/opencfu_engine_web.dart. Only lazily loads the actual WASM
+    module (opencfu/opencfu_mobile.js/.wasm) on first call, so it doesn't
+    delay the app's own startup -- see opencfu/opencfu_web_bridge.js and
+    native/opencfu_core/wasm/README.md.
+  -->
+  <script defer src="opencfu/opencfu_web_bridge.js"></script>
+
+  <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.

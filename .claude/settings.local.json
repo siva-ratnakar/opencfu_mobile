@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file assets/branding/*.png)",
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(python3 -c \"import PIL; print\\('PIL ok'\\)\")",
+      "Bash(python3 -c \"import numpy; print\\('numpy ok'\\)\")"
+    ]
+  }
+}
