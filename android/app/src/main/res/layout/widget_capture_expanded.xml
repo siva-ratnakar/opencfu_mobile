@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Wide variant of the capture widget: Basic Capture and Advanced Setup as two
+  equal-width tap targets side by side. Swapped in for widget_basic_capture
+  once the operator resizes the widget past the width threshold checked in
+  BasicCaptureWidgetProvider.kt.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <FrameLayout
+        android:id="@+id/widget_expanded_basic"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_launcher"
+            android:contentDescription="@string/widget_basic_capture_label" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/widget_expanded_advanced"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_launcher_advanced"
+            android:contentDescription="@string/widget_advanced_capture_label" />
+    </FrameLayout>
+</LinearLayout>
