@@ -8,14 +8,23 @@
 // far more error-prone to get right blind (no browser available while this
 // was written -- see docs/BUILD.md's web WASM section).
 (function () {
+  // document.currentScript is only valid synchronously, during this
+  // script's own top-level execution -- capture it now. Reading it again
+  // later inside loadModule() (called asynchronously, whenever the operator
+  // first triggers an analysis) would return null, since by then this
+  // script has long finished running and is no longer "the current script".
+  // That was silently resolving opencfu_mobile.js against the page's own
+  // URL instead of this script's folder, 404ing on any base-href other than
+  // "/" (e.g. a GitHub Pages project site).
+  const thisScriptUrl = document.currentScript ? document.currentScript.src : '';
+  const base = thisScriptUrl ? thisScriptUrl.replace(/[^/]+$/, '') : '';
+
   let modulePromise = null;
   let classifierReady = false;
 
   function loadModule() {
     if (modulePromise) return modulePromise;
     modulePromise = new Promise((resolve, reject) => {
-      const thisScript = document.currentScript;
-      const base = thisScript ? thisScript.src.replace(/[^/]+$/, '') : '';
       const script = document.createElement('script');
       script.src = base + 'opencfu_mobile.js';
       script.onload = () => {
