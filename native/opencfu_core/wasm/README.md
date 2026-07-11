@@ -144,3 +144,47 @@ browser before this shipped -- there wasn't one available. If counting
 doesn't work on a real deploy, open the browser console first; the most
 likely failure points are exactly those two, not the analysis logic itself
 (which was thoroughly exercised per step 4).
+
+**Confirmed bug, already fixed, from the first real deploy**:
+`opencfu_mobile.js` 404'd on GitHub Pages (a non-root base href) because
+`loadModule()` read `document.currentScript` *inside* its async callback to
+find its own folder. That property is only valid synchronously, during a
+script's own top-level execution -- by the time `loadModule()` actually ran
+(async, triggered by the operator's first capture, long after
+`opencfu_web_bridge.js` itself had finished its initial synchronous run),
+`document.currentScript` was `null`, silently collapsing the resolved path
+to just `opencfu_mobile.js` relative to the page root instead of the
+`opencfu/` folder it's actually in. Fixed by capturing the script's URL once
+at top-level synchronous execution time and reusing that stored value later
+-- see the top of `opencfu_web_bridge.js`. Exactly the class of bug flagged
+above as the highest-risk unverified piece; if something like this happens
+again, suspect the same pattern (a browser-only API read from the wrong
+execution context) before suspecting the analysis logic.
+
+**Second confirmed bug, from the second real deploy** (after the 404 above
+was fixed): analysis failed with `TypeError: Failed to execute 'decode' on
+'TextDecoder': The provided ArrayBuffer value must not be resizable`. Root
+cause: `ALLOW_MEMORY_GROWTH=1` (needed since a plate photo's decoded size
+isn't known upfront) defaults, in this Emscripten version, to backing
+growable memory with a JS *resizable* `ArrayBuffer` whenever the browser
+supports one (current Chrome does) -- but the browser's native
+`TextDecoder.decode()` currently refuses views onto resizable
+`ArrayBuffer`s, and Emscripten uses `TextDecoder` internally to marshal
+`std::string` fields (`WasmResult::errorMessage`) back to JS. This
+specifically bit the *error* path -- a short/empty `errorMessage` (the
+success case) stays under Emscripten's own no-`TextDecoder` fast path for
+tiny strings, but any real error message is long enough to hit it, meaning
+this bug was actively hiding whatever the real underlying error was.
+Node's `TextDecoder` doesn't enforce this browser-specific restriction, so
+this one could not be reproduced or confirmed fixed the same way as the
+first bug (step 4's Node-based check exercises the analysis logic
+correctly regardless, but not this specific browser/TextDecoder
+interaction) -- fixed based on tracing Emscripten's own source
+(`runtime_common.js`'s `getMemoryBuffer()`) to find `GROWABLE_ARRAYBUFFERS`,
+the setting controlling whether the resizable-buffer path is ever taken at
+all, and confirmed only by the user's real deploy. `-sTEXTDECODER=0`
+(disable `TextDecoder` entirely) would have been the more direct fix but
+isn't accepted by this Emscripten version (`TEXTDECODER must be either 1 or
+2`); `-sGROWABLE_ARRAYBUFFERS=0` forces the older detach-and-replace growth
+strategy instead, which was never resizable to begin with, sidestepping the
+incompatibility at its source rather than working around its symptom.

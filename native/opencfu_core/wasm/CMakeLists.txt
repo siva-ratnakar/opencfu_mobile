@@ -74,4 +74,16 @@ target_link_options(opencfu_mobile PRIVATE
     -sALLOW_MEMORY_GROWTH=1
     -sENVIRONMENT=web
     -sUSE_PTHREADS=0
+    # Growable WASM memory (ALLOW_MEMORY_GROWTH above) defaults
+    # (GROWABLE_ARRAYBUFFERS=1) to backing itself with a JS "resizable"
+    # ArrayBuffer whenever the browser supports one (current Chrome does) --
+    # but the browser's native TextDecoder.decode() currently refuses views
+    # onto resizable ArrayBuffers ("The provided ArrayBuffer value must not
+    # be resizable"), and Emscripten uses TextDecoder internally to pull
+    # std::string fields (e.g. WasmResult::errorMessage) back out to JS.
+    # Tried disabling TextDecoder entirely instead (-sTEXTDECODER=0), but
+    # this Emscripten version no longer accepts that value -- forcing the
+    # classic non-resizable, detach-and-replace growth strategy here avoids
+    # the incompatibility at its source regardless.
+    -sGROWABLE_ARRAYBUFFERS=0
 )
