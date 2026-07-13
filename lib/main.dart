@@ -577,6 +577,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
   List<ColonyMarker> _markers = <ColonyMarker>[];
   int? _selectedMarkerIndex;
 
+  /// Index into widget.cameras of the camera currently in use -- starts on
+  /// the back/environment-facing one where available (see
+  /// [_preferredCameraIndex]) and can be cycled via [_switchCamera].
+  int _selectedCameraIndex = 0;
+
   /// Gallery photos picked together in one multi-select, waiting their turn
   /// as separate plates -- [_currentImage] is always the one being reviewed
   /// right now; this is everything queued up behind it. See
@@ -617,7 +622,21 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedCameraIndex = _preferredCameraIndex();
     _initCamera();
+  }
+
+  /// Prefers the back/environment-facing camera for a fresh plate photo --
+  /// that's the one actually useful for photographing a plate held up to the
+  /// device, and native platforms' own camera list is already back-first so
+  /// this is a no-op there. Browsers can't be relied on for that ordering --
+  /// camera_web's device enumeration isn't guaranteed to put the
+  /// environment-facing camera first -- which is why a phone opening this in
+  /// a browser could otherwise land on the front/selfie camera with no way
+  /// to change it.
+  int _preferredCameraIndex() {
+    final index = widget.cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.back);
+    return index >= 0 ? index : 0;
   }
 
   @override
@@ -630,7 +649,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _initCamera() async {
     if (widget.cameras.isEmpty) return;
-    final controller = CameraController(widget.cameras.first, ResolutionPreset.high, enableAudio: false);
+    final controller = CameraController(widget.cameras[_selectedCameraIndex], ResolutionPreset.high, enableAudio: false);
     try {
       await controller.initialize();
       if (!mounted) {
@@ -644,6 +663,23 @@ class _CaptureScreenState extends State<CaptureScreen> {
     } catch (_) {
       if (mounted) setState(() => _cameraReady = false);
     }
+  }
+
+  /// Cycles to the next available camera (e.g. back -> front -> back...) --
+  /// the button that calls this only shows when there's more than one to
+  /// choose from. Disposes the current controller before starting the next
+  /// one, same as the camera plugin itself requires when switching devices.
+  Future<void> _switchCamera() async {
+    if (_busy || widget.cameras.length < 2) return;
+    final oldController = _cameraController;
+    setState(() {
+      _cameraReady = false;
+      _cameraController = null;
+    });
+    await oldController?.dispose();
+    if (!mounted) return;
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % widget.cameras.length;
+    await _initCamera();
   }
 
   /// Runs (or reruns) analysis on [image] with the current [_liveOptions],
@@ -1125,6 +1161,16 @@ class _CaptureScreenState extends State<CaptureScreen> {
                             ),
                           ),
                           child: Center(child: CircularProgressIndicator()),
+                        ),
+                      if (!hasImage && _cameraReady && widget.cameras.length > 1)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: IconButton.filledTonal(
+                            onPressed: _busy ? null : _switchCamera,
+                            tooltip: 'Switch camera',
+                            icon: const Icon(Icons.cameraswitch_rounded),
+                          ),
                         ),
                       if (_busy) const _AnalyzingOverlay(),
                       Positioned(
